@@ -213,26 +213,28 @@ static NSString *letters = @"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXY
 }
 
 RCT_EXPORT_METHOD(openEditor: (NSString*)path options: (NSArray *)features options: (NSDictionary*) options resolve: (RCTPromiseResolveBlock)resolve reject: (RCTPromiseRejectBlock)reject) {
-    UIImage* image = [UIImage imageWithContentsOfFile: path];
+    PESDKPhoto* image = [[PESDKPhoto alloc] initWithUrl:[NSURL URLWithString:path]];
     PESDKConfiguration* config = [self _buildConfig:options];
     [self _openEditor:image config:config features:features resolve:resolve reject:reject];
 }
 
 RCT_EXPORT_METHOD(openCamera: (NSArray*) features options:(NSDictionary*) options resolve: (RCTPromiseResolveBlock)resolve reject: (RCTPromiseRejectBlock)reject) {
-    __weak typeof(self) weakSelf = self;
-    UIViewController *currentViewController = RCTPresentedViewController();
-    PESDKConfiguration* config = [self _buildConfig:options];
-    
-    self.cameraController = [[PESDKCameraViewController alloc] initWithConfiguration:config];
-    [self.cameraController.cameraController setupWithInitialRecordingMode:RecordingModePhoto error:nil];
-    
-    [self.cameraController setCompletionBlock:^(UIImage * image, NSURL * _) {
-        [currentViewController dismissViewControllerAnimated:YES completion:^{
-            [weakSelf _openEditor:image config:config features:features resolve:resolve reject:reject];
+    dispatch_async(dispatch_get_main_queue(), ^{
+        __weak typeof(self) weakSelf = self;
+        UIViewController *currentViewController = RCTPresentedViewController();
+        PESDKConfiguration* config = [self _buildConfig:options];
+        
+        self.cameraController = [[PESDKCameraViewController alloc] initWithConfiguration:config];
+        [self.cameraController.cameraController setupWithInitialRecordingMode:RecordingModePhoto error:nil];
+        
+        [self.cameraController setCompletionBlock:^(UIImage * image, NSURL * _) {
+            [currentViewController dismissViewControllerAnimated:YES completion:^{
+                [weakSelf _openEditor:image config:config features:features resolve:resolve reject:reject];
+            }];
         }];
-    }];
-    
-    [currentViewController presentViewController:self.cameraController animated:YES completion:nil];
+        
+        [currentViewController presentViewController:self.cameraController animated:YES completion:nil];
+    });
 }
 
 -(void)photoEditViewControllerDidCancel:(PESDKPhotoEditViewController *)photoEditViewController {
